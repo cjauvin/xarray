@@ -375,6 +375,12 @@ class NetCDF4DataStore(WritableCFDataStore):
         manager = CachingFileManager(
             netCDF4.Dataset, filename, mode=mode, kwargs=kwargs
         )
+
+        # In the case where the file is opened for the second time, this has the effect
+        # of flushing it from the cache, which also calls close() on the underlying NetCDF4
+        # object.
+        manager.close()
+
         return cls(manager, group=group, mode=mode, lock=lock, autoclose=autoclose)
 
     def _acquire(self, needs_lock=True):
