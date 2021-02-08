@@ -1507,6 +1507,30 @@ class TestNetCDF4AlreadyOpen:
                 expected = Dataset({"y": ("x", np.arange(10))})
                 assert_identical(expected, copied)
 
+    def test_refresh_from_disk(self, tmp_path):
+        # regression test for https://github.com/pydata/xarray/issues/4862
+
+        # Copy example_1.nc to a tmp folder
+        shutil.copy(
+            os.path.join(os.path.dirname(__file__), "data", "example_1.nc"),
+            tmp_path / "example_1.nc",
+        )
+
+        # Create example_1_modified.nc and save it to tmp folder
+        with open_example_dataset("example_1.nc") as example_1_modified:
+            example_1_modified.rh.values += 100
+            example_1_modified.to_netcdf(tmp_path / "example_1_modified.nc")
+
+        a = open_dataset(tmp_path / "example_1.nc").load()
+
+        # Simulate external process modifying example_1.nc while this script is running
+        shutil.copy(tmp_path / "example_1_modified.nc", tmp_path / "example_1.nc")
+
+        # Reopen example_1.nc (modified) as `b`; note that `a` has NOT been closed
+        b = open_dataset(tmp_path / "example_1.nc").load()
+
+        assert not np.array_equal(a.rh.values, b.rh.values)
+
 
 @requires_netCDF4
 @requires_dask
